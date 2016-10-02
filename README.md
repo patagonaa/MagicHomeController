@@ -1,79 +1,95 @@
-# MagicHomeController Version 0.4
+# MagicHomeController.NET 0.4
+
+Port of [AceFloof's MagicHomeController](https://github.com/acefloof/MagicHomeController) to C#
+
 With this class you can control devices that are compatible with the "MagicHome" app
 
 Provided as is without warranty
-## How to use:
-### Device types are:
-* 0: RGB
-* 1: RGB+WW
-* 2: RGB+WW+CW
-* 3: Bulb (v.4+)
-* 4: Bulb (v.3-) (Higher numbers reserved for future use)
- 
+## How to use Device:
+### Device types as defined in the `DeviceType` enum:
 
-    Example call: $controller1 = new \Ace\MagicHome\Device("192.168.2.102", 1);
+* DeviceType.Rgb
+* DeviceType.RgbWarmwhite
+* DeviceType.RgbWarmwhiteColdWhite
+* DeviceType.Bulb // V.4+
+* DeviceType.LegacyBulb // V.3-
 
-**To start a test program call:**
-
-    $controller1->test();
+Example call: `var controller1 = new Device(IPAddress.Parse("192.168.2.102"), DeviceType.RgbWarmwhite);`
 
 **To turn the controller on/off use the following methods:**
     
-    $controller1->turnOn();
-    $controller1->turnOff();
+```
+controller1.TurnOn();
+controller1.TurnOff();
+```
 
 **To set an RGB(+WW+CW) color use the following method:**
 
-    $controller1->updateDevice(R, G, B);
-    $controller1->updateDevice(R, G, B, WW);
-    $controller1->updateDevice(R, G, B, WW, CW);
+```
+controller1.SetColor(R, G, B);
+controller1.SetColor(R, G, B, WW);
+controller1.SetColor(R, G, B, WW, CW);
+```
 
-**Presets can range from 0x25 (int 37) to 0x38 (int 56), anything outside of this will be rounded up or down.**
+**To set a preset mode use the following method:**
+
+```
+controller1.SetPreset(PresetMode, Speed);
+```
 
 A speed of 1 is fastest, and 24 is slowest.
 
-    Example call: $controller1->sendPresetFunction(37, 10);
+Example call: `controller1.SetPreset(PresetMode.RgbFade, 10);`
 
- * 37 = RGB Fade
- * 38 = Red Pulse
- * 39 = Green Pulse
- * 40 = Blue Pulse
- * 41 = Yellow Pulse
- * 42 = Cyan Pulse
- * 43 = Violet Pulse
- * 44 = White Pulse
- * 45 = Red Green Alternate Pulse
- * 46 = Red Blue Alternate Pulse
- * 47 = Green Blue Alternate Pulse
- * 48 = Disco Flash
- * 49 = Red Flash
- * 50 = Green Flash
- * 51 = Blue Flash
- * 52 = Yellow Flash
- * 53 = Cyan Flash
- * 54 = Violet Flash
- * 55 = White Flash
- * 56 = Color Change
- * *97 = Normal RGB(+WW+CW) mode (Will be set automatically with updateDevice() and only returned from getStatus())*
- 
- 
- 
+### Preset modes as defined in the `PresetMode` enum:
+
+* RgbFade
+* RedPulse
+* GreenPulse
+* BluePulse
+* YellowPulse
+* CyanPulse
+* VioletPulse
+* WhitePulse
+* RedGreenAlternatePulse
+* RedBlueAlternatePulse
+* GreenBlueAlternatePulse
+* DiscoFlash
+* RedFlash
+* GreenFlash
+* BlueFlash
+* YellowFlash
+* CyanFlash
+* VioletFlash
+* WhiteFlash
+* ColorChange
+* NormalRgb // Normal RGB(+WW+CW) mode (Will be set automatically with SetColor() and only returned from GetDeviceStatus())*
+
 **You can get the current status of the controller with**
 
-    $controller1->getStatus();
+```
+controller1.GetDeviceStatus();
+```
  
- This will for example return an Array with the following values:
+This will return a DeviceStatus Object with the following Properties:
 
-    array(7) {
-        ["on"]=> bool(true)
-        ["mode"]=> int(37)
-        ["speed"]=> int(24)
-        ["r"]=> int(255)
-        ["g"]=> int(0)
-        ["b"]=> int(0)
-        ["w1"]=> int(123)
-    }
-    
-**There also is a wrapper class and a scan method for easier access to the data and searching for controllers**
+* On
+* Mode
+* Speed
+* Red
+* Green
+* Blue
+* White1
+* White2
 
-See examples for usage
+## How to Scan for Devices:
+
+**Use static method `DeviceFinder.FindDevices()`**
+
+This will return a List of DeviceFindResult Objects with the following Properties:
+
+* IpAddress
+* MacAddress
+* Model
+
+Example usage: `var allDevices = DeviceFinder.FindDevices().Select(x => new Device(x.IpAddress, DeviceType.RgbWarmwhite))`
