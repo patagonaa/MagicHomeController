@@ -63,7 +63,7 @@ Example call: `controller1.SetPreset(PresetMode.RgbFade, 10);`
 * VioletFlash
 * WhiteFlash
 * ColorChange
-* NormalRgb // Normal RGB(+WW+CW) mode (Will be set automatically with SetColor() and only returned from GetDeviceStatus())*
+* NormalRgb *(Will be set automatically with SetColor() and only returned from GetDeviceStatus())*
 
 **You can get the current status of the controller with**
 
