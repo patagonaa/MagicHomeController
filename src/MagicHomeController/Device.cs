@@ -6,7 +6,7 @@ namespace MagicHomeController
 {
 	public class Device : IDisposable
 	{
-		private readonly IPEndPoint _endPoint;
+		private readonly EndPoint _endPoint;
 		private readonly DeviceType _deviceType;
 		private readonly Socket _socket;
 		private const int DefaultPort = 5577;
@@ -16,7 +16,7 @@ namespace MagicHomeController
 		{
 		}
 
-		public Device(IPEndPoint endPoint, DeviceType deviceType)
+		public Device(EndPoint endPoint, DeviceType deviceType)
 		{
 			_endPoint = endPoint;
 			_deviceType = deviceType;
