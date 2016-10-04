@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 
 namespace MagicHomeController
@@ -143,7 +145,16 @@ namespace MagicHomeController
 
 			return checksum;
 		}
-		
+
+		public static Device GetByMacAddress(PhysicalAddress mac, DeviceType deviceType)
+		{
+			var deviceFindResult = DeviceFinder.FindDevices().FirstOrDefault(x => x.MacAddress.Equals(mac));
+			if (deviceFindResult == null)
+				return null;
+
+			return new Device(deviceFindResult.IpAddress, deviceType);
+		}
+
 		public void Dispose()
 		{
 			if (_socket.Connected)

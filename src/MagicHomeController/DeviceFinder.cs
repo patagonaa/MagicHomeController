@@ -150,7 +150,7 @@ namespace MagicHomeController
 			if (endPoint == null)
 				endPoint = new IPEndPoint(new IPAddress(new byte[] {255, 255, 255, 255}), BroadcastPort);
 
-			return new DeviceFindEnumerable(endPoint, 10);
+			return new DeviceFindEnumerable(endPoint, timeout);
 		}
 	}
 }
