@@ -22,7 +22,10 @@ namespace MagicHomeController
 			}
 		}
 
-		internal static IEqualityComparer<DeviceFindResult> MacAddressEqualityComparer => new MacAddressComparer();
+		internal static IEqualityComparer<DeviceFindResult> MacAddressEqualityComparer
+		{
+			get { return new MacAddressComparer(); }
+		}
 
 		public IPAddress IpAddress { get; set; }
 		public PhysicalAddress MacAddress { get; set; }
