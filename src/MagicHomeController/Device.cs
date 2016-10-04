@@ -112,9 +112,14 @@ namespace MagicHomeController
 			if (!_socket.Connected)
 				_socket.Connect(_endPoint);
 
-			_socket.Send(bytes);
 			if (sendChecksum)
-				_socket.Send(new[] {CalculateChecksum(bytes)});
+			{
+				var checksum = CalculateChecksum(bytes);
+				Array.Resize(ref bytes, bytes.Length + 1);
+				bytes[bytes.Length - 1] = checksum;
+			}
+
+			_socket.Send(bytes);
 
 			var buffer = new byte[2048];
 			var readBytes = _socket.Receive(buffer);
