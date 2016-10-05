@@ -6,6 +6,17 @@ namespace MagicHomeController
 {
 	public class DeviceFindResult
 	{
+		private readonly IPAddress _ipAddress;
+		private readonly PhysicalAddress _macAddress;
+		private readonly string _model;
+
+		public DeviceFindResult(IPAddress ipAddress, PhysicalAddress macAddress, string model)
+		{
+			_ipAddress = ipAddress;
+			_macAddress = macAddress;
+			_model = model;
+		}
+
 		private class MacAddressComparer : IEqualityComparer<DeviceFindResult>
 		{
 			public bool Equals(DeviceFindResult x, DeviceFindResult y)
@@ -27,8 +38,8 @@ namespace MagicHomeController
 			get { return new MacAddressComparer(); }
 		}
 
-		public IPAddress IpAddress { get; set; }
-		public PhysicalAddress MacAddress { get; set; }
-		public string Model { get; set; }
+		public IPAddress IpAddress { get { return _ipAddress; } }
+		public PhysicalAddress MacAddress { get { return _macAddress; } }
+		public string Model { get { return _model; } }
 	}
 }

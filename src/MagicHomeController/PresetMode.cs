@@ -1,6 +1,6 @@
 ﻿namespace MagicHomeController
 {
-	public enum PresetMode
+	public enum PresetMode : byte
 	{
 		RgbFade = 37,
 		RedPulse = 38,

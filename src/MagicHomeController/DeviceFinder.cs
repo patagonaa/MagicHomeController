@@ -64,7 +64,7 @@ namespace MagicHomeController
 							}
 						} while (result != null);
 					}
-					
+
 					while (DateTime.UtcNow < _endTime)
 					{
 						_socket.SendTo(Message, SocketFlags.DontRoute, _endPoint);
@@ -108,12 +108,14 @@ namespace MagicHomeController
 					if (splitResponse.Length != 3)
 						return null;
 
-					return new DeviceFindResult
+					try
 					{
-						IpAddress = IPAddress.Parse(splitResponse[0]),
-						MacAddress = PhysicalAddress.Parse(splitResponse[1]),
-						Model = splitResponse[2]
-					};
+						return new DeviceFindResult(IPAddress.Parse(splitResponse[0]), PhysicalAddress.Parse(splitResponse[1]), splitResponse[2]);
+					}
+					catch (Exception)
+					{
+						return null;
+					}
 				}
 
 				public void Reset()
@@ -143,7 +145,7 @@ namespace MagicHomeController
 			{
 				return GetEnumerator();
 			}
-		} 
+		}
 
 		public static IEnumerable<DeviceFindResult> FindDevices(IPEndPoint endPoint = null, int timeout = 5)
 		{

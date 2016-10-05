@@ -25,7 +25,7 @@ namespace MagicHomeController
 			_socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 		}
 
-		public DeviceStatus GetDeviceStatus()
+		public DeviceStatus GetStatus()
 		{
 			if (_deviceType == DeviceType.RgbWarmwhiteColdWhite)
 				throw new NotImplementedException();
@@ -37,17 +37,13 @@ namespace MagicHomeController
 			if(response.Length != 14)
 				throw new Exception("Controller sent wrong number of bytes while getting status");
 
-			var toReturn = new DeviceStatus
-			{
-				On = response[2] == 0x23,
-				Mode = (PresetMode) response[3],
-				Speed = response[5],
-				Red = response[6],
-				Green = response[7],
-				Blue = response[8],
-				White1 = response[9]
-			};
-			return toReturn;
+			return new DeviceStatus(response[2] == 0x23,
+				(PresetMode) response[3],
+				response[5],
+				response[6],
+				response[7],
+				response[8],
+				response[9]);
 		}
 
 		public void TurnOn()
@@ -66,7 +62,7 @@ namespace MagicHomeController
 				SendMessage(new byte[] {0x71, 0x24, 0x0F, 0xA4}, false);
 		}
 
-		public void SetColor(byte red, byte green, byte blue, byte? white1 = 0, byte? white2 = 0)
+		public void SetColor(byte red, byte green, byte blue, byte? white1 = null, byte? white2 = null)
 		{
 			byte[] message;
 
@@ -74,16 +70,16 @@ namespace MagicHomeController
 			{
 				case DeviceType.Rgb:
 				case DeviceType.RgbWarmwhite:
-					message = new byte[] {0x31, red, green, blue, white1 ?? 0, 0x00, 0x0f};
+					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, 0x00, 0x0f };
 					break;
 				case DeviceType.RgbWarmwhiteColdWhite:
-					message = new byte[] {0x31, red, green, blue, white1 ?? 0, white2 ?? 0, 0x0f, 0x0f};
+					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, white2 ?? 0, 0x0f, 0x0f };
 					break;
 				case DeviceType.Bulb:
-					message = white1 != null ? new byte[] {0x31, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0x0f} : new byte[] {0x31, red, green, blue, 0x00, 0xf0, 0x0f};
+					message = white1 != null ? new byte[] { 0x31, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0x0f } : new byte[] { 0x31, red, green, blue, 0x00, 0xf0, 0x0f };
 					break;
 				case DeviceType.LegacyBulb:
-					message = white1 != null ? new byte[] {0x56, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0xaa, 0x56, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0xaa} : new byte[] {0x56, red, green, blue, 0x00, 0xf0, 0xaa};
+					message = white1 != null ? new byte[] { 0x56, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0xaa, 0x56, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0xaa } : new byte[] { 0x56, red, green, blue, 0x00, 0xf0, 0xaa };
 					break;
 				default:
 					throw new ArgumentOutOfRangeException();
