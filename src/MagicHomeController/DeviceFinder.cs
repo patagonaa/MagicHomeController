@@ -28,7 +28,7 @@ namespace MagicHomeController
 				private readonly IPEndPoint _endPoint;
 				private readonly Socket _socket;
 				private readonly DateTime _endTime;
-				private static readonly byte[] Message = { 0x48, 0x46, 0x2d, 0x41, 0x31, 0x31, 0x41, 0x53, 0x53, 0x49, 0x53, 0x54, 0x48, 0x52, 0x45, 0x41, 0x44 };
+				private static readonly byte[] Message = Encoding.ASCII.GetBytes("HF-A11ASSISTHREAD");
 				private readonly HashSet<DeviceFindResult> _foundDevices; 
 
 				public DeviceFindEnumerator(IPEndPoint endPoint, int timeout)

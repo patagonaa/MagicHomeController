@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -23,7 +24,9 @@ namespace MagicHomeController
 			_endPoint = endPoint;
 			_deviceType = deviceType;
 			_socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-		}
+            _socket.ReceiveTimeout = 1000;
+            _socket.SendTimeout = 1000;
+        }
 
 		public DeviceStatus GetStatus()
 		{
@@ -51,7 +54,7 @@ namespace MagicHomeController
 			if (_deviceType == DeviceType.LegacyBulb)
 				SendMessage(new byte[] {0xCC, 0x23, 0x33}, false);
 			else
-				SendMessage(new byte[] {0x71, 0x23, 0x0F, 0xA3}, false);
+				SendMessage(new byte[] {0x71, 0x23, 0x0F}, true);
 		}
 
 		public void TurnOff()
@@ -59,7 +62,7 @@ namespace MagicHomeController
 			if (_deviceType == DeviceType.LegacyBulb)
 				SendMessage(new byte[] {0xCC, 0x24, 0x33}, false);
 			else
-				SendMessage(new byte[] {0x71, 0x24, 0x0F, 0xA4}, false);
+				SendMessage(new byte[] {0x71, 0x24, 0x0F}, true);
 		}
 
 		public void SetColor(byte red, byte green, byte blue, byte? white1 = null, byte? white2 = null)
@@ -70,7 +73,7 @@ namespace MagicHomeController
 			{
 				case DeviceType.Rgb:
 				case DeviceType.RgbWarmwhite:
-					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, 0x00, 0x0f };
+					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, 0x0f, 0x0f };
 					break;
 				case DeviceType.RgbWarmwhiteColdWhite:
 					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, white2 ?? 0, 0x0f, 0x0f };
@@ -88,21 +91,100 @@ namespace MagicHomeController
 			SendMessage(message, true);
 		}
 
-		public void SetPreset(PresetMode presetMode, byte speed)
+		public void SetPreset(PresetMode presetMode, byte delay)
 		{
-			if (speed > 24)
-				speed = 24;
-			if (speed < 1)
-				speed = 1;
+			if (delay > 24)
+				delay = 24;
+			if (delay < 1)
+				delay = 1;
 
 			if (_deviceType == DeviceType.LegacyBulb)
 			{
-				SendMessage(new byte[] {0xBB, (byte) presetMode, speed, 0x44}, false);
+				SendMessage(new byte[] { 0xBB, (byte)presetMode, delay, 0x44 }, false);
 			}
 			else
 			{
-				SendMessage(new byte[] {0x61, (byte) presetMode, speed, 0x0F}, true);
+				SendMessage(new byte[] { 0x61, (byte)presetMode, delay, 0x0F }, true);
 			}
+		}
+
+		public void SetClock(DateTime time)
+		{
+			byte[] msg;
+
+			checked
+			{
+				msg = new byte[]
+				{
+					0x10,
+					0x14,
+					(byte)(time.Year - 2000),
+					(byte)time.Month,
+					(byte)time.Day,
+					(byte)time.Hour,
+					(byte)time.Minute,
+					(byte)time.Second,
+					(byte)(time.DayOfWeek == 0 ? 7 : (int)time.DayOfWeek),
+					0x00,
+					0x0F
+				};
+			}
+
+			SendMessage(msg, true);
+		}
+
+		public IEnumerable<Timer> GetTimers()
+		{
+			var msg = new byte[] { 0x22, 0x2a, 0x2b, 0x0f };
+
+			var response = SendMessage(msg, true);
+			if (response.Length != 88)
+				throw new Exception("Controller sent wrong number of bytes while getting timers");
+
+			for (int i = 0; i < 6; i++)
+			{
+				var timerBytes = new byte[14];
+				Array.Copy(response, 2 + (i * 14), timerBytes, 0, 14);
+
+				var timer = new Timer(timerBytes);
+
+				if (timer.Active)
+					yield return timer;
+			}
+		}
+
+		public void SetTimers(IEnumerable<Timer> timers)
+		{
+			var timersToSend = new Timer[6];
+
+			var enumerator = timers.GetEnumerator();
+
+			for (int i = 0; i < 6; i++)
+			{
+				if (enumerator.MoveNext())
+					timersToSend[i] = enumerator.Current;
+				else
+					timersToSend[i] = new Timer();
+			}
+
+			if (enumerator.MoveNext())
+				throw new Exception("only 6 timers can be set");
+
+			enumerator.Dispose();
+
+			var msg = new byte[87];
+			msg[0] = 0x21;
+
+			for (int i = 0; i < 6; i++)
+			{
+				var bytes = timersToSend[i].ToBytes();
+				Array.Copy(bytes, 0, msg, 1 + (i * 14), 14);
+			}
+
+			msg[85] = 0x00;
+			msg[86] = 0xF0;
+
+			SendMessage(msg, true);
 		}
 
 		private byte[] SendMessage(byte[] bytes, bool sendChecksum)
