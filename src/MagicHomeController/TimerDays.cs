@@ -12,6 +12,9 @@ namespace MagicHomeController
 		Thursday = 0x10,
 		Friday = 0x20,
 		Saturday = 0x40,
-		Sunday = 0x80
+		Sunday = 0x80,
+
+		Everyday = Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday,
+		Weekdays = Monday | Tuesday | Wednesday | Thursday | Friday
 	}
 }

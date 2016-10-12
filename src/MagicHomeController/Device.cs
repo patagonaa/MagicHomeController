@@ -35,7 +35,7 @@ namespace MagicHomeController
 
 			var message = new byte[] {0x81, 0x8A, 0x8B, 0x96};
 
-			var response = SendMessage(message, false);
+			var response = SendMessage(message, false, true);
 
 			if(response.Length != 14)
 				throw new Exception("Controller sent wrong number of bytes while getting status");
@@ -52,17 +52,17 @@ namespace MagicHomeController
 		public void TurnOn()
 		{
 			if (_deviceType == DeviceType.LegacyBulb)
-				SendMessage(new byte[] {0xCC, 0x23, 0x33}, false);
+				SendMessage(new byte[] {0xCC, 0x23, 0x33}, false, true);
 			else
-				SendMessage(new byte[] {0x71, 0x23, 0x0F}, true);
+				SendMessage(new byte[] {0x71, 0x23, 0x0F}, true, true);
 		}
 
 		public void TurnOff()
 		{
 			if (_deviceType == DeviceType.LegacyBulb)
-				SendMessage(new byte[] {0xCC, 0x24, 0x33}, false);
+				SendMessage(new byte[] {0xCC, 0x24, 0x33}, false, true);
 			else
-				SendMessage(new byte[] {0x71, 0x24, 0x0F}, true);
+				SendMessage(new byte[] {0x71, 0x24, 0x0F}, true, true);
 		}
 
 		public void SetColor(byte red, byte green, byte blue, byte? white1 = null, byte? white2 = null)
@@ -88,7 +88,7 @@ namespace MagicHomeController
 					throw new ArgumentOutOfRangeException();
 			}
 
-			SendMessage(message, true);
+			SendMessage(message, true, true);
 		}
 
 		public void SetPreset(PresetMode presetMode, byte delay)
@@ -100,15 +100,27 @@ namespace MagicHomeController
 
 			if (_deviceType == DeviceType.LegacyBulb)
 			{
-				SendMessage(new byte[] { 0xBB, (byte)presetMode, delay, 0x44 }, false);
+				SendMessage(new byte[] { 0xBB, (byte)presetMode, delay, 0x44 }, false, true);
 			}
 			else
 			{
-				SendMessage(new byte[] { 0x61, (byte)presetMode, delay, 0x0F }, true);
+				SendMessage(new byte[] { 0x61, (byte)presetMode, delay, 0x0F }, true, true);
 			}
 		}
 
-		public void SetClock(DateTime time)
+		public DateTime GetTime()
+		{
+			var msg = new byte[] { 0x11, 0x1a, 0x1b, 0x0f };
+
+			var response = SendMessage(msg, true, true);
+
+			if(response.Length != 12)
+				throw new Exception("Controller sent wrong number of bytes while getting time");
+
+			return new DateTime(response[3] + 2000, response[4], response[5], response[6], response[7], response[8]);
+		}
+
+		public void SetTime(DateTime time)
 		{
 			byte[] msg;
 
@@ -130,14 +142,14 @@ namespace MagicHomeController
 				};
 			}
 
-			SendMessage(msg, true);
+			SendMessage(msg, true, false);
 		}
 
 		public IEnumerable<Timer> GetTimers()
 		{
 			var msg = new byte[] { 0x22, 0x2a, 0x2b, 0x0f };
 
-			var response = SendMessage(msg, true);
+			var response = SendMessage(msg, true, true);
 			if (response.Length != 88)
 				throw new Exception("Controller sent wrong number of bytes while getting timers");
 
@@ -146,9 +158,9 @@ namespace MagicHomeController
 				var timerBytes = new byte[14];
 				Array.Copy(response, 2 + (i * 14), timerBytes, 0, 14);
 
-				var timer = new Timer(timerBytes);
+				var timer = Timer.FromBytes(timerBytes);
 
-				if (timer.Active)
+				if (timer != null)
 					yield return timer;
 			}
 		}
@@ -184,10 +196,10 @@ namespace MagicHomeController
 			msg[85] = 0x00;
 			msg[86] = 0xF0;
 
-			SendMessage(msg, true);
+			SendMessage(msg, true, false);
 		}
 
-		private byte[] SendMessage(byte[] bytes, bool sendChecksum)
+		private byte[] SendMessage(byte[] bytes, bool sendChecksum, bool waitForResponse)
 		{
 			if (!_socket.Connected)
 				_socket.Connect(_endPoint);
@@ -200,6 +212,9 @@ namespace MagicHomeController
 			}
 
 			_socket.Send(bytes);
+
+			if (!waitForResponse)
+				return null;
 
 			var buffer = new byte[2048];
 			var readBytes = _socket.Receive(buffer);
@@ -231,6 +246,11 @@ namespace MagicHomeController
 				return null;
 
 			return new Device(deviceFindResult.IpAddress, deviceType);
+		}
+
+		public override string ToString()
+		{
+			return string.Format("{0} Device on {1}", _deviceType, _endPoint);
 		}
 
 		public void Dispose()

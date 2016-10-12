@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 
 namespace MagicHomeController
 {
@@ -6,7 +7,7 @@ namespace MagicHomeController
 	{
 		public bool Active { get; set; }
 		public TimerDays RepeatDays { get; set; }
-		public DateTime? Date { get; set; }
+		public DateTime Date { get; set; }
 		public PresetMode Mode { get; set; }
 		public byte PresetDelay { get; set; }
 		public byte Red { get; set; }
@@ -15,39 +16,49 @@ namespace MagicHomeController
 		public byte White1 { get; set; }
 		public bool On { get; set; }
 
-		internal Timer()
+		public Timer()
 		{
 		}
 
-		internal Timer(byte[] timerBytes)
+		internal static Timer FromBytes(byte[] timerBytes)
 		{
-			Active = timerBytes[0] == 0xF0;
+			var active = timerBytes[0] == 0xF0;
 
-			RepeatDays = (TimerDays)timerBytes[7];
-
-			if (RepeatDays == TimerDays.None)
+			if (!active && timerBytes[1] == 0 && timerBytes[2] == 0 && timerBytes[3] == 0 && timerBytes[4] == 0 && timerBytes[5] == 0 && timerBytes[6] == 0)
 			{
-				try
-				{
-					Date = new DateTime(timerBytes[1] + 2000, timerBytes[2], timerBytes[3], timerBytes[4], timerBytes[5], timerBytes[6]);
-				}
-				catch (ArgumentOutOfRangeException)
-				{
-					Date = null;
-				}
+				return null;
 			}
 
-			Mode = (PresetMode)timerBytes[8];
+			var toReturn = new Timer();
 
-			if (Mode == PresetMode.NormalRgb)
-				Red = timerBytes[9];
+			toReturn.Active = active;
+
+			toReturn.RepeatDays = (TimerDays)timerBytes[7];
+
+			if (toReturn.RepeatDays == TimerDays.None)
+			{
+				toReturn.Date = new DateTime(timerBytes[1] + 2000, timerBytes[2], timerBytes[3], timerBytes[4], timerBytes[5], timerBytes[6]);
+				if (toReturn.Date < DateTime.Now)
+					return null;
+			}
 			else
-				PresetDelay = timerBytes[9];
+			{
+				toReturn.Date = new DateTime(1, 1, 1, timerBytes[4], timerBytes[5], timerBytes[6]);
+			}
 
-			Green = timerBytes[10];
-			Blue = timerBytes[11];
-			White1 = timerBytes[12];
-			On = timerBytes[13] == 0xF0;
+			toReturn.Mode = (PresetMode)timerBytes[8];
+
+			if (toReturn.Mode == PresetMode.NormalRgb)
+				toReturn.Red = timerBytes[9];
+			else
+				toReturn.PresetDelay = timerBytes[9];
+
+			toReturn.Green = timerBytes[10];
+			toReturn.Blue = timerBytes[11];
+			toReturn.White1 = timerBytes[12];
+			toReturn.On = timerBytes[13] == 0xF0;
+
+			return toReturn;
 		}
 
 		internal byte[] ToBytes()
@@ -61,16 +72,14 @@ namespace MagicHomeController
 
 			if (RepeatDays == TimerDays.None)
 			{
-				if (Date == null)
-					throw new Exception("non-repeated timer must have date set");
-
-				toReturn[1] = (byte)Date.Value.Year;
-				toReturn[2] = (byte)Date.Value.Month;
-				toReturn[3] = (byte)Date.Value.Day;
-				toReturn[4] = (byte)Date.Value.Hour;
-				toReturn[5] = (byte)Date.Value.Minute;
-				toReturn[6] = (byte)Date.Value.Second;
+				toReturn[1] = (byte)(Date.Year - 2000);
+				toReturn[2] = (byte)Date.Month;
+				toReturn[3] = (byte)Date.Day;
 			}
+
+			toReturn[4] = (byte)Date.Hour;
+			toReturn[5] = (byte)Date.Minute;
+			toReturn[6] = (byte)Date.Second;
 
 			toReturn[7] = (byte)RepeatDays;
 
@@ -97,6 +106,40 @@ namespace MagicHomeController
 			toReturn[13] = 0xF0;
 
 			return toReturn;
+		}
+
+		public override string ToString()
+		{
+			var sb = new StringBuilder();
+
+			sb.Append(Active ? "active: " : "inactive: ");
+			if(RepeatDays == TimerDays.None)
+			{
+				sb.AppendFormat("on {0} ", Date.ToString("s"));
+			}
+			else
+			{
+				sb.AppendFormat("every {0} at {1} ", RepeatDays.ToString("G"), Date.ToString("HH:mm"));
+			}
+
+			if (On)
+			{
+				sb.AppendFormat("set mode {0}", Mode.ToString());
+				if(Mode == PresetMode.NormalRgb)
+				{
+					sb.AppendFormat(", R={0}, G={1}, B={2} W={3}", Red, Green, Blue, White1);
+				}
+				else
+				{
+					sb.AppendFormat(" delay {0}", PresetDelay);
+				}
+			}
+			else
+			{
+				sb.AppendFormat("turn off", Mode.ToString());
+			}
+
+			return sb.ToString();
 		}
 	}
 }

@@ -41,5 +41,10 @@ namespace MagicHomeController
 		public IPAddress IpAddress { get { return _ipAddress; } }
 		public PhysicalAddress MacAddress { get { return _macAddress; } }
 		public string Model { get { return _model; } }
+
+		public override string ToString()
+		{
+			return string.Format("{0},{1},{2}", IpAddress, MacAddress, Model);
+		}
 	}
 }
