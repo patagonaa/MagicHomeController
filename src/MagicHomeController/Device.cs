@@ -88,7 +88,7 @@ namespace MagicHomeController
 					throw new ArgumentOutOfRangeException();
 			}
 
-			SendMessage(message, true, true);
+			SendMessage(message, true, false);
 		}
 
 		public void SetPreset(PresetMode presetMode, byte delay)
@@ -211,12 +211,33 @@ namespace MagicHomeController
 				bytes[bytes.Length - 1] = checksum;
 			}
 
+			var buffer = new byte[2048];
+
+			if (waitForResponse)
+			{
+				_socket.Blocking = false;
+
+				try
+				{
+					while (_socket.Receive(buffer) > 0)
+					{
+					}
+				}
+				catch (SocketException ex)
+				{
+					if (ex.SocketErrorCode != SocketError.WouldBlock)
+						throw;
+				}
+
+				_socket.Blocking = true;
+			}
+
 			_socket.Send(bytes);
 
 			if (!waitForResponse)
 				return null;
 
-			var buffer = new byte[2048];
+			
 			var readBytes = _socket.Receive(buffer);
 
 			Array.Resize(ref buffer, readBytes);
