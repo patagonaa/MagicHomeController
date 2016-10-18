@@ -15,12 +15,12 @@ namespace MagicHomeController
 		private class DeviceFindEnumerable : IEnumerable<DeviceFindResult> 
 		{
 			private readonly IPEndPoint _endPoint;
-			private readonly int _timeout;
+			private readonly int _timeoutMs;
 
-			public DeviceFindEnumerable(IPEndPoint endPoint, int timeout)
+			public DeviceFindEnumerable(IPEndPoint endPoint, int timeoutMs)
 			{
 				_endPoint = endPoint;
-				_timeout = timeout;
+				_timeoutMs = timeoutMs;
 			}
 			
 			private class DeviceFindEnumerator : IEnumerator<DeviceFindResult>
@@ -29,19 +29,25 @@ namespace MagicHomeController
 				private readonly Socket _socket;
 				private readonly DateTime _endTime;
 				private static readonly byte[] Message = Encoding.ASCII.GetBytes("HF-A11ASSISTHREAD");
-				private readonly HashSet<DeviceFindResult> _foundDevices; 
+				private readonly HashSet<DeviceFindResult> _foundDevices;
+				private bool _tryReceiveNextTime;
+				private const int ReceiveTriesTotal = 5;
+				private const int SendTriesTotal = 5;
 
-				public DeviceFindEnumerator(IPEndPoint endPoint, int timeout)
+				public DeviceFindEnumerator(IPEndPoint endPoint, int timeoutMs)
 				{
 					_endPoint = endPoint;
 
 					_socket = new Socket(endPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
 					_socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
-					_socket.ReceiveTimeout = 200;
+
+					_socket.ReceiveTimeout = timeoutMs / ReceiveTriesTotal / SendTriesTotal;
 
 					_foundDevices = new HashSet<DeviceFindResult>(DeviceFindResult.MacAddressEqualityComparer);
 
-					_endTime = DateTime.UtcNow.AddSeconds(timeout);
+					_endTime = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+
+					_tryReceiveNextTime = false;
 				}
 
 				public bool MoveNext()
@@ -51,7 +57,7 @@ namespace MagicHomeController
 
 					DeviceFindResult result;
 
-					if (_socket.IsBound)
+					if (_tryReceiveNextTime)
 					{
 						do
 						{
@@ -68,16 +74,19 @@ namespace MagicHomeController
 					while (DateTime.UtcNow < _endTime)
 					{
 						_socket.SendTo(Message, SocketFlags.DontRoute, _endPoint);
-
-						while (DateTime.UtcNow < _endTime)
+						var receiveTries = 0;
+						while (DateTime.UtcNow < _endTime && receiveTries < ReceiveTriesTotal)
 						{
 							result = TryReceive();
 
 							if (result != null && _foundDevices.Add(result))
 							{
 								Current = result;
+								_tryReceiveNextTime = true;
 								return true;
 							}
+
+							receiveTries++;
 						}
 					}
 					return false;
@@ -138,7 +147,7 @@ namespace MagicHomeController
 
 			public IEnumerator<DeviceFindResult> GetEnumerator()
 			{
-				return new DeviceFindEnumerator(_endPoint, _timeout);
+				return new DeviceFindEnumerator(_endPoint, _timeoutMs);
 			}
 
 			IEnumerator IEnumerable.GetEnumerator()
@@ -147,7 +156,7 @@ namespace MagicHomeController
 			}
 		}
 
-		public static IEnumerable<DeviceFindResult> FindDevices(IPEndPoint endPoint = null, int timeout = 5)
+		public static IEnumerable<DeviceFindResult> FindDevices(IPEndPoint endPoint = null, int timeout = 5000)
 		{
 			if (endPoint == null)
 				endPoint = new IPEndPoint(new IPAddress(new byte[] {255, 255, 255, 255}), BroadcastPort);
