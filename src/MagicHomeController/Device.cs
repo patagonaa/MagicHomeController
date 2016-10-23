@@ -24,8 +24,8 @@ namespace MagicHomeController
 			_endPoint = endPoint;
 			_deviceType = deviceType;
 			_socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            _socket.ReceiveTimeout = 1000;
-            _socket.SendTimeout = 1000;
+            _socket.ReceiveTimeout = 100;
+            _socket.SendTimeout = 100;
         }
 
 		public DeviceStatus GetStatus()
@@ -236,7 +236,6 @@ namespace MagicHomeController
 
 			if (!waitForResponse)
 				return null;
-
 			
 			var readBytes = _socket.Receive(buffer);
 
