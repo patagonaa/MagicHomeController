@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace MagicHomeController
 {
@@ -65,7 +66,7 @@ namespace MagicHomeController
 				SendMessage(new byte[] {0x71, 0x24, 0x0F}, true, true);
 		}
 
-		public void SetColor(byte red, byte green, byte blue, byte? white1 = null, byte? white2 = null)
+		public void SetColor(byte red, byte green, byte blue, byte? white1 = null, byte? white2 = null, bool waitForResponse = true)
 		{
 			byte[] message;
 
@@ -88,7 +89,7 @@ namespace MagicHomeController
 					throw new ArgumentOutOfRangeException();
 			}
 
-			SendMessage(message, true, false);
+			SendMessage(message, true, waitForResponse);
 		}
 
 		public void SetPreset(PresetMode presetMode, byte delay)
@@ -211,7 +212,7 @@ namespace MagicHomeController
 				bytes[bytes.Length - 1] = checksum;
 			}
 
-			var buffer = new byte[2048];
+			var buffer = new byte[256];
 
 			if (waitForResponse)
 			{
@@ -232,16 +233,31 @@ namespace MagicHomeController
 				_socket.Blocking = true;
 			}
 
-			_socket.Send(bytes);
+			const int maxSendRetries = 10;
+			var retries = 0;
 
-			if (!waitForResponse)
-				return null;
-			
-			var readBytes = _socket.Receive(buffer);
+			while(true)
+			{
+				_socket.Send(bytes);
 
-			Array.Resize(ref buffer, readBytes);
+				if (!waitForResponse)
+					return null;
 
-			return buffer;
+				try
+				{
+					int readBytes = _socket.Receive(buffer);
+
+					Array.Resize(ref buffer, readBytes);
+
+					return buffer;
+				}
+				catch (SocketException ex)
+				{
+					if(ex.SocketErrorCode != SocketError.TimedOut || retries >= maxSendRetries)
+						throw;
+					retries++;
+				}
+			}
 		}
 
 		private byte CalculateChecksum(byte[] bytes)
