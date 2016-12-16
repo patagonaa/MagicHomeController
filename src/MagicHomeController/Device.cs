@@ -295,6 +295,7 @@ namespace MagicHomeController
 			_socket = new Socket(_endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             _socket.ReceiveTimeout = 100;
             _socket.SendTimeout = 100;
+			_socket.Connect(_endPoint);
 		}
 
 		public void Dispose()
