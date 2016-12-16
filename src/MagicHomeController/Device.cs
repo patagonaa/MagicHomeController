@@ -12,7 +12,7 @@ namespace MagicHomeController
 	{
 		private readonly EndPoint _endPoint;
 		private readonly DeviceType _deviceType;
-		private readonly Socket _socket;
+		private Socket _socket;
 		private const int DefaultPort = 5577;
 
 		public Device(IPAddress ip, DeviceType deviceType)
@@ -24,9 +24,6 @@ namespace MagicHomeController
 		{
 			_endPoint = endPoint;
 			_deviceType = deviceType;
-			_socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            _socket.ReceiveTimeout = 100;
-            _socket.SendTimeout = 100;
         }
 
 		public DeviceStatus GetStatus()
@@ -202,8 +199,8 @@ namespace MagicHomeController
 
 		private byte[] SendMessage(byte[] bytes, bool sendChecksum, bool waitForResponse)
 		{
-			if (!_socket.Connected)
-				_socket.Connect(_endPoint);
+			if (_socket == null || !_socket.Connected)
+				Reconnect();
 
 			if (sendChecksum)
 			{
@@ -256,6 +253,7 @@ namespace MagicHomeController
 					if(ex.SocketErrorCode != SocketError.TimedOut || retries >= maxSendRetries)
 						throw;
 					retries++;
+					Thread.Sleep(10);
 				}
 			}
 		}
@@ -287,6 +285,16 @@ namespace MagicHomeController
 		public override string ToString()
 		{
 			return string.Format("{0} Device on {1}", _deviceType, _endPoint);
+		}
+
+		public void Reconnect()
+		{
+			if (_socket != null)
+				_socket.Dispose();
+
+			_socket = new Socket(_endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            _socket.ReceiveTimeout = 100;
+            _socket.SendTimeout = 100;
 		}
 
 		public void Dispose()
