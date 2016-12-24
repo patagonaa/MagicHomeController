@@ -28,9 +28,6 @@ namespace MagicHomeController
 
 		public DeviceStatus GetStatus()
 		{
-			if (_deviceType == DeviceType.RgbWarmwhiteColdWhite)
-				throw new NotImplementedException();
-
 			var message = new byte[] {0x81, 0x8A, 0x8B, 0x96};
 
 			var response = SendMessage(message, false, true);
@@ -44,7 +41,9 @@ namespace MagicHomeController
 				response[6],
 				response[7],
 				response[8],
-				response[9]);
+				response[9],
+				null //TODO: RGBWWCW
+				);
 		}
 
 		public void TurnOn()
@@ -71,16 +70,14 @@ namespace MagicHomeController
 			{
 				case DeviceType.Rgb:
 				case DeviceType.RgbWarmwhite:
+				case DeviceType.Bulb:
 					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, 0x0f, 0x0f };
 					break;
 				case DeviceType.RgbWarmwhiteColdWhite:
 					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, white2 ?? 0, 0x0f, 0x0f };
 					break;
-				case DeviceType.Bulb:
-					message = white1 != null ? new byte[] { 0x31, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0x0f } : new byte[] { 0x31, red, green, blue, 0x00, 0xf0, 0x0f };
-					break;
 				case DeviceType.LegacyBulb:
-					message = white1 != null ? new byte[] { 0x56, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0xaa, 0x56, 0x00, 0x00, 0x00, white1.Value, 0x0f, 0xaa } : new byte[] { 0x56, red, green, blue, 0x00, 0xf0, 0xaa };
+					message = new byte[] {0x56, red, green, blue, white1 ?? 0, 0x0f, 0xaa };
 					break;
 				default:
 					throw new ArgumentOutOfRangeException();

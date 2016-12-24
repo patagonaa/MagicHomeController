@@ -2,46 +2,73 @@
 
 Port of [AceFloof's MagicHomeController](https://github.com/acefloof/MagicHomeController) to C#
 
-With this class you can control devices that are compatible with the "MagicHome" app
+With this class you can control devices that are compatible with the "Magic Home" app
 
 Provided as is without warranty
-## How to use Device:
-### Device types as defined in the `DeviceType` enum:
 
+## Usage:
+
+### Instantiating new Devices
+Use one of the constructor overloads
+```
+new Device(IPAddress ip, DeviceType type);
+new Device(EndPoint endPoint, DeviceType type);
+```
+
+Device Types as defined in the `DeviceType` enum:
 * DeviceType.Rgb
 * DeviceType.RgbWarmwhite
 * DeviceType.RgbWarmwhiteColdWhite
 * DeviceType.Bulb // V.4+
 * DeviceType.LegacyBulb // V.3-
 
-Example call: `var controller1 = new Device(IPAddress.Parse("192.168.2.102"), DeviceType.RgbWarmwhite);`
-
-**To turn the controller on/off use the following methods:**
-    
+Examples:
 ```
-controller1.TurnOn();
-controller1.TurnOff();
+Device controller1 = new Device(IPAddress.Parse("192.168.178.123"), DeviceType.Rgb);
+Device controller2 = new Device(new IPEndPoint(IPAddress.Parse("192.168.178.1"), 1234), DeviceType.RgbWarmwhite);
 ```
 
-**To set an RGB(+WW+CW) color use the following method:**
-
+### Turning the controller on and off
+Use the methods
 ```
-controller1.SetColor(R, G, B);
-controller1.SetColor(R, G, B, WW);
-controller1.SetColor(R, G, B, WW, CW);
-```
-
-**To set a preset mode use the following method:**
-
-```
-controller1.SetPreset(PresetMode, Speed);
+void Device.TurnOn();
+void Device.TurnOff();
 ```
 
-A speed of 1 is fastest, and 24 is slowest.
+### Setting colors
+Use one of the method overloads
+```
+void Device.SetColor(byte r, byte g, byte b);
+void Device.SetColor(byte r, byte g, byte b, byte ww);
+void Device.SetColor(byte r, byte g, byte b, byte ww, byte cw);
+```
+or the extension method
+```
+void Device.SetColor(System.Drawing.Color color);
+void Device.SetColor(System.Drawing.Color color, byte ww);
+void Device.SetColor(System.Drawing.Color color, byte ww, byte cw);
+```
 
-Example call: `controller1.SetPreset(PresetMode.RgbFade, 10);`
+Examples: 
+```
+controller1.SetColor(255, 255, 255);
+controller1.SetColor(Color.DarkBlue);
+```
 
-### Preset modes as defined in the `PresetMode` enum:
+### Using the built-in preset modes
+Use the method
+```
+void Device.SetPreset(PresetMode presetMode, byte presetDelay);
+```
+
+a presetDelay of 1 is fastest, and 24 is slowest.
+
+Example: 
+```
+controller1.SetPreset(PresetMode.RgbFade, 10);
+```
+
+Preset modes as defined in the `PresetMode` enum:
 
 * RgbFade
 * RedPulse
@@ -65,31 +92,145 @@ Example call: `controller1.SetPreset(PresetMode.RgbFade, 10);`
 * ColorChange
 * NormalRgb *(Will be set automatically with SetColor() and only returned from GetDeviceStatus())*
 
-**You can get the current status of the controller with**
-
+### Getting the current device status
+Use the method
 ```
-controller1.GetDeviceStatus();
+DeviceStatus Device.GetDeviceStatus();
 ```
  
-This will return a DeviceStatus Object with the following Properties:
+This will return a `DeviceStatus` Object with the following Properties:
 
-* On
-* Mode
-* Speed
-* Red
-* Green
-* Blue
-* White1
-* White2
+* bool On // if set to false, device is off
+* PresetMode Mode // if set to `PresetMode.NormalRgb`, PresetDelay property is ignored, else RGBW properties are ignored
+* byte PresetDelay // described in [Using the built-in preset modes](#using-the-built-in-preset-modes)
+* byte Red
+* byte Green
+* byte Blue
+* byte? White1
+* byte? White2
 
-## How to Scan for Devices:
+### Using Timers
+#### Setting the current time
+Use the method
+```
+void Device.SetTime(DateTime dateTime);
+```
+Example call:
+```
+controller1.SetTime(DateTime.Now);
+```
 
-**Use static method `DeviceFinder.FindDevices()`**
+#### Getting the time currently set
+Use the method
+```
+DateTime Device.GetTime();
+```
 
-This will return a List of DeviceFindResult Objects with the following Properties:
+#### Getting all timers
+Use the method
+```
+IEnumerable<Timer> Device.GetTimers();
+```
+This will return an IEnumerable of `Timer` objects further described [below](#the-timer-object).
+
+#### Setting all timers
+Use the method
+```
+void Device.SetTimers(IEnumerable<Timer> timers);
+```
+This takes an IEnumerable of `Timer` objects further described [below](#the-timer-object).
+
+There can be up to 6 Timers at once.
+
+#### The `Timer` object
+It has the following properties:
+* bool Active // Timer is active / inactive
+* TimerDays RepeatDays // further described below
+* DateTime Date // further described below
+* DeviceStatus Status // status to set (described under [Getting the current device status](#getting-the-current-device-status))
+
+The value of RepeatDays is described in the `TimerDays` flags enum and can be one or a combination of the following values:
+* None
+* Monday
+* Tuesday
+* Wednesday
+* Thursday
+* Friday
+* Saturday
+* Sunday
+* Everyday
+* Weekdays
+
+where `Everyday` is an alias of `Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday`
+and `Weekdays` is an alias of `Monday | Tuesday | Wednesday | Thursday | Friday`
+
+If `RepeatDays` is set to `None` then the Timer is only executed at the exact date and time that is set with `Date`.
+
+If `RepeatDays` is set to anything different, only the Time Part of `Date` is relevant and the Timer executes at the specified Time every day in `RepeatDays`.
+
+Example usage (Turn the controller on every Monday and Tuesday at 15:30 with the color blue, turn the controller off every Monday and Tuesday at 18:00 and turn the controller on (white flashing with a speed of 10) at this time tomorrow.):
+
+```
+IList<Timer> timers = new List<Timer>();
+timers.Add(new Timer
+{
+	Active = true,
+	RepeatDays = TimerDays.Monday | TimerDays.Tuesday,
+	Date = new DateTime(1, 1, 1, 15, 30, 00),
+	Status = new DeviceStatus
+	{
+		On = true,
+		Mode = PresetMode.NormalRgb,
+		Red = 0,
+		Green = 0,
+		Blue = 255,
+		White1 = 0
+	}
+});
+
+timers.Add(new Timer
+{
+	Active = true,
+	RepeatDays = TimerDays.Monday | TimerDays.Tuesday,
+	Date = new DateTime(1, 1, 1, 18, 00, 00),
+	Status = new DeviceStatus
+	{
+		On = false
+	}
+});
+
+timers.Add(new Timer
+{
+	Active = true,
+	RepeatDays = TimerDays.None,
+	Date = DateTime.Now.AddDays(1),
+	Status = new DeviceStatus
+	{
+		On = true,
+		Mode = PresetMode.WhiteFlash,
+		PresetDelay = 10
+	}
+});
+
+controller1.SetTimers(timers);
+```
+
+### Scanning for Devices
+
+Use one of the the static method overloads
+```
+IEnumerable<DeviceFindResult> DeviceFinder.FindDevices();
+IEnumerable<DeviceFindResult> DeviceFinder.FindDevices(Endpoint endPoint);
+IEnumerable<DeviceFindResult> DeviceFinder.FindDevices(Endpoint endPoint, int timeoutMilliseconds);
+```
+
+This will return an IEnumerable of `DeviceFindResult` objects with the following Properties:
 
 * IpAddress
 * MacAddress
 * Model
 
-Example usage: `var allDevices = DeviceFinder.FindDevices().Select(x => new Device(x.IpAddress, DeviceType.RgbWarmwhite))`
+Example usage: 
+```
+IEnumerable<Device> allDevices = DeviceFinder.FindDevices().Select(x => new Device(x.IpAddress, DeviceType.RgbWarmwhite))
+```

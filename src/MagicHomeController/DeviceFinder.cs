@@ -14,10 +14,10 @@ namespace MagicHomeController
 
 		private class DeviceFindEnumerable : IEnumerable<DeviceFindResult> 
 		{
-			private readonly IPEndPoint _endPoint;
+			private readonly EndPoint _endPoint;
 			private readonly int _timeoutMs;
 
-			public DeviceFindEnumerable(IPEndPoint endPoint, int timeoutMs)
+			public DeviceFindEnumerable(EndPoint endPoint, int timeoutMs)
 			{
 				_endPoint = endPoint;
 				_timeoutMs = timeoutMs;
@@ -25,7 +25,7 @@ namespace MagicHomeController
 			
 			private class DeviceFindEnumerator : IEnumerator<DeviceFindResult>
 			{
-				private readonly IPEndPoint _endPoint;
+				private readonly EndPoint _endPoint;
 				private readonly Socket _socket;
 				private readonly DateTime _endTime;
 				private static readonly byte[] Message = Encoding.ASCII.GetBytes("HF-A11ASSISTHREAD");
@@ -34,7 +34,7 @@ namespace MagicHomeController
 				private const int ReceiveTriesTotal = 5;
 				private const int SendTriesTotal = 5;
 
-				public DeviceFindEnumerator(IPEndPoint endPoint, int timeoutMs)
+				public DeviceFindEnumerator(EndPoint endPoint, int timeoutMs)
 				{
 					_endPoint = endPoint;
 
@@ -156,7 +156,7 @@ namespace MagicHomeController
 			}
 		}
 
-		public static IEnumerable<DeviceFindResult> FindDevices(IPEndPoint endPoint = null, int timeout = 5000)
+		public static IEnumerable<DeviceFindResult> FindDevices(EndPoint endPoint = null, int timeout = 5000)
 		{
 			if (endPoint == null)
 				endPoint = new IPEndPoint(new IPAddress(new byte[] {255, 255, 255, 255}), BroadcastPort);

@@ -5,19 +5,21 @@ namespace MagicHomeController
 {
 	public class Timer
 	{
+		private DeviceStatus _status;
 		public bool Active { get; set; }
 		public TimerDays RepeatDays { get; set; }
 		public DateTime Date { get; set; }
-		public PresetMode Mode { get; set; }
-		public byte PresetDelay { get; set; }
-		public byte Red { get; set; }
-		public byte Green { get; set; }
-		public byte Blue { get; set; }
-		public byte White1 { get; set; }
-		public bool On { get; set; }
 
-		public Timer()
+		public DeviceStatus Status
 		{
+			get
+			{
+				if (_status == null)
+					return _status = new DeviceStatus();
+
+				return _status;
+			}
+			set { _status = value; }
 		}
 
 		internal static Timer FromBytes(byte[] timerBytes)
@@ -46,17 +48,32 @@ namespace MagicHomeController
 				toReturn.Date = new DateTime(1, 1, 1, timerBytes[4], timerBytes[5], timerBytes[6]);
 			}
 
-			toReturn.Mode = (PresetMode)timerBytes[8];
+			var deviceStatus = new DeviceStatus();
 
-			if (toReturn.Mode == PresetMode.NormalRgb)
-				toReturn.Red = timerBytes[9];
+			if (timerBytes[13] == 0xF0)
+			{
+				deviceStatus.On = true;
+
+				deviceStatus.Mode = (PresetMode)timerBytes[8];
+
+				if (deviceStatus.Mode == PresetMode.NormalRgb)
+				{
+					deviceStatus.Red = timerBytes[9];
+					deviceStatus.Green = timerBytes[10];
+					deviceStatus.Blue = timerBytes[11];
+					deviceStatus.White1 = timerBytes[12];
+				}
+				else
+				{
+					deviceStatus.PresetDelay = timerBytes[9];
+				}
+			}
 			else
-				toReturn.PresetDelay = timerBytes[9];
+			{
+				deviceStatus.On = false;
+			}
 
-			toReturn.Green = timerBytes[10];
-			toReturn.Blue = timerBytes[11];
-			toReturn.White1 = timerBytes[12];
-			toReturn.On = timerBytes[13] == 0xF0;
+			toReturn.Status = deviceStatus;
 
 			return toReturn;
 		}
@@ -83,24 +100,27 @@ namespace MagicHomeController
 
 			toReturn[7] = (byte)RepeatDays;
 
-			if(!On)
+			DeviceStatus deviceStatus = Status;
+			if (!deviceStatus.On)
 			{
 				toReturn[13] = 0x0F;
 				return toReturn;
 			}
 
-			toReturn[8] = (byte)Mode;
+			toReturn[8] = (byte)deviceStatus.Mode;
 
-			if(Mode == PresetMode.NormalRgb)
+			if (deviceStatus.Mode == PresetMode.NormalRgb)
 			{
-				toReturn[9] = Red;
-				toReturn[10] = Green;
-				toReturn[11] = Blue;
-				toReturn[12] = White1;
+				toReturn[9] = deviceStatus.Red;
+				toReturn[10] = deviceStatus.Green;
+				toReturn[11] = deviceStatus.Blue;
+				toReturn[12] = deviceStatus.White1 ?? 0;
+				if(deviceStatus.White2 != null)
+					throw new NotSupportedException("RGBWWCW currently not supported for timers"); // TODO
 			}
 			else
 			{
-				toReturn[9] = PresetDelay;
+				toReturn[9] = deviceStatus.PresetDelay;
 			}
 
 			toReturn[13] = 0xF0;
@@ -113,7 +133,7 @@ namespace MagicHomeController
 			var sb = new StringBuilder();
 
 			sb.Append(Active ? "active: " : "inactive: ");
-			if(RepeatDays == TimerDays.None)
+			if (RepeatDays == TimerDays.None)
 			{
 				sb.AppendFormat("on {0} ", Date.ToString("s"));
 			}
@@ -122,21 +142,22 @@ namespace MagicHomeController
 				sb.AppendFormat("every {0} at {1} ", RepeatDays.ToString("G"), Date.ToString("HH:mm"));
 			}
 
-			if (On)
+			DeviceStatus deviceStatus = Status;
+			if (deviceStatus.On)
 			{
-				sb.AppendFormat("set mode {0}", Mode.ToString());
-				if(Mode == PresetMode.NormalRgb)
+				sb.AppendFormat("set mode {0}", deviceStatus.Mode);
+				if (deviceStatus.Mode == PresetMode.NormalRgb)
 				{
-					sb.AppendFormat(", R={0}, G={1}, B={2} W={3}", Red, Green, Blue, White1);
+					sb.AppendFormat(", R={0}, G={1}, B={2} W={3}", deviceStatus.Red, deviceStatus.Green, deviceStatus.Blue, deviceStatus.White1);
 				}
 				else
 				{
-					sb.AppendFormat(" delay {0}", PresetDelay);
+					sb.AppendFormat(" delay {0}", deviceStatus.PresetDelay);
 				}
 			}
 			else
 			{
-				sb.AppendFormat("turn off", Mode.ToString());
+				sb.Append("turn off");
 			}
 
 			return sb.ToString();
