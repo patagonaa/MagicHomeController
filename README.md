@@ -168,7 +168,7 @@ If `RepeatDays` is set to `None` then the Timer is only executed at the exact da
 
 If `RepeatDays` is set to anything different, only the Time Part of `Date` is relevant and the Timer executes at the specified Time every day in `RepeatDays`.
 
-Example usage (Turn the controller on every Monday and Tuesday at 15:30 with the color blue, turn the controller off every Monday and Tuesday at 18:00 and turn the controller on (white flashing with a speed of 10) at this time tomorrow.):
+Example usage (Turn the controller on every Monday and Tuesday at 15:30 with the color blue, turn the controller off every Monday and Tuesday at 18:00 and turn the controller on (white flashing with a delay of 10) at this time tomorrow.):
 
 ```
 IList<Timer> timers = new List<Timer>();
