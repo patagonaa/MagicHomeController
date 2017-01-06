@@ -52,7 +52,7 @@ namespace MagicHomeController
 
 			if (timerBytes[13] == 0xF0)
 			{
-				deviceStatus.On = true;
+				deviceStatus.PowerState = PowerState.PowerOn;
 
 				deviceStatus.Mode = (PresetMode)timerBytes[8];
 
@@ -70,7 +70,7 @@ namespace MagicHomeController
 			}
 			else
 			{
-				deviceStatus.On = false;
+				deviceStatus.PowerState = PowerState.PowerOff;
 			}
 
 			toReturn.Status = deviceStatus;
@@ -101,10 +101,16 @@ namespace MagicHomeController
 			toReturn[7] = (byte)RepeatDays;
 
 			DeviceStatus deviceStatus = Status;
-			if (!deviceStatus.On)
+			switch (deviceStatus.PowerState)
 			{
-				toReturn[13] = 0x0F;
-				return toReturn;
+				case PowerState.PowerOff:
+					toReturn[13] = 0x0F;
+					return toReturn;
+				case PowerState.PowerOn:
+					toReturn[13] = 0xF0;
+					break;
+				default:
+					throw new NotSupportedException(string.Format("PowerState {0} cannot be used with timers", deviceStatus.PowerState));
 			}
 
 			toReturn[8] = (byte)deviceStatus.Mode;
@@ -122,8 +128,6 @@ namespace MagicHomeController
 			{
 				toReturn[9] = deviceStatus.PresetDelay;
 			}
-
-			toReturn[13] = 0xF0;
 
 			return toReturn;
 		}
@@ -143,7 +147,7 @@ namespace MagicHomeController
 			}
 
 			DeviceStatus deviceStatus = Status;
-			if (deviceStatus.On)
+			if (deviceStatus.PowerState == PowerState.PowerOn)
 			{
 				sb.AppendFormat("set mode {0}", deviceStatus.Mode);
 				if (deviceStatus.Mode == PresetMode.NormalRgb)

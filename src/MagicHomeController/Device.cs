@@ -46,16 +46,19 @@ namespace MagicHomeController
 				if (response.Length != 12)
 					throw new Exception("Controller sent wrong number of bytes while getting status");
 
-				return new DeviceStatus(response[2] == 0x23,
-					response[3] == 0x41 ? PresetMode.NormalRgb : (PresetMode)response[3], // is this actually needed?
-					response[4] == 0x20,
-					response[5],
-					response[6],
-					response[7],
-					response[8],
-					response[9],
-					null
-					);
+
+				return new DeviceStatus
+				{
+					PowerState = (PowerState) response[2],
+					Mode = response[3] == 0x41 ? PresetMode.NormalRgb : (PresetMode) response[3],
+					PresetPaused = response[4] == 0x20,
+					PresetDelay = response[5],
+					Red = response[6],
+					Green = response[7],
+					Blue = response[8],
+					White1 = response[9],
+					VersionNumber = response[10]
+				};
 			}
 			else
 			{
@@ -66,33 +69,38 @@ namespace MagicHomeController
 				if (response.Length != 14)
 					throw new Exception("Controller sent wrong number of bytes while getting status");
 
-				return new DeviceStatus(response[2] == 0x23,
-					(PresetMode) response[3],
-					false,
-					response[5],
-					response[6],
-					response[7],
-					response[8],
-					response[9],
-					response[11] //TODO: check if this is correct
-					);
+				return new DeviceStatus
+				{
+					PowerState = (PowerState) response[2],
+					Mode = (PresetMode) response[3],
+					PresetPaused = false,
+					PresetDelay = response[5],
+					Red = response[6],
+					Green = response[7],
+					Blue = response[8],
+					White1 = response[9],
+					VersionNumber = response[10],
+					White2 = response[11] //TODO: check if this is correct
+				};
 			}
+		}
+
+		public void SetPowerState(PowerState state)
+		{
+			if (_deviceType == DeviceType.LegacyBulb)
+				SendMessage(new byte[] { 0xCC, (byte) state, 0x33 }, false, true);
+			else
+				SendMessage(new byte[] { 0x71, (byte) state, 0x0F }, true, true);
 		}
 
 		public void TurnOn()
 		{
-			if (_deviceType == DeviceType.LegacyBulb)
-				SendMessage(new byte[] {0xCC, 0x23, 0x33}, false, true);
-			else
-				SendMessage(new byte[] {0x71, 0x23, 0x0F}, true, true);
+			SetPowerState(PowerState.PowerOn);
 		}
 
 		public void TurnOff()
 		{
-			if (_deviceType == DeviceType.LegacyBulb)
-				SendMessage(new byte[] {0xCC, 0x24, 0x33}, false, true);
-			else
-				SendMessage(new byte[] {0x71, 0x24, 0x0F}, true, true);
+			SetPowerState(PowerState.PowerOff);
 		}
 
 		public void SetColor(byte? red = null, byte? green = null, byte? blue = null, byte? white1 = null, byte? white2 = null, bool waitForResponse = true, bool persist = true)

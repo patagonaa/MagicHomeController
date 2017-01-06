@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="DeviceExtensions.cs" />
     <Compile Include="DeviceStatus.cs" />
+    <Compile Include="PowerState.cs" />
     <Compile Include="PresetMode.cs" />
     <Compile Include="Device.cs" />
     <Compile Include="DeviceFinder.cs" />
