@@ -8,6 +8,15 @@ using System.Threading;
 
 namespace MagicHomeController
 {
+	// General Stuff based on: 
+	// https://github.com/beville/flux_led
+	// https://github.com/vikstrous/zengge-lightcontrol
+	// https://github.com/zoot1612/plugin_mh/blob/master/MH_API.txt
+	// some own reverse engineering via tcpdump
+
+	// Legacy Bulb Stuff based on: 
+	// https://docs.google.com/document/d/1IJ2l5GvphzQFpe22I6L5qjZG0DXvY12nHl6hHSQ7I2s/pub
+	
 	public class Device : IDisposable
 	{
 		private readonly EndPoint _endPoint;
@@ -28,22 +37,46 @@ namespace MagicHomeController
 
 		public DeviceStatus GetStatus()
 		{
-			var message = new byte[] {0x81, 0x8A, 0x8B, 0x96};
+			if (_deviceType == DeviceType.LegacyBulb)
+			{
+				var message = new byte[] { 0xEF, 0x01, 0x77 };
 
-			var response = SendMessage(message, false, true);
+				var response = SendMessage(message, false, true);
 
-			if(response.Length != 14)
-				throw new Exception("Controller sent wrong number of bytes while getting status");
+				if (response.Length != 12)
+					throw new Exception("Controller sent wrong number of bytes while getting status");
 
-			return new DeviceStatus(response[2] == 0x23,
-				(PresetMode) response[3],
-				response[5],
-				response[6],
-				response[7],
-				response[8],
-				response[9],
-				null //TODO: RGBWWCW
-				);
+				return new DeviceStatus(response[2] == 0x23,
+					response[3] == 0x41 ? PresetMode.NormalRgb : (PresetMode)response[3], // is this actually needed?
+					response[4] == 0x20,
+					response[5],
+					response[6],
+					response[7],
+					response[8],
+					response[9],
+					null
+					);
+			}
+			else
+			{
+				var message = new byte[] { 0x81, 0x8A, 0x8B, 0x96 };
+
+				var response = SendMessage(message, false, true);
+
+				if (response.Length != 14)
+					throw new Exception("Controller sent wrong number of bytes while getting status");
+
+				return new DeviceStatus(response[2] == 0x23,
+					(PresetMode) response[3],
+					false,
+					response[5],
+					response[6],
+					response[7],
+					response[8],
+					response[9],
+					response[11] //TODO: check if this is correct
+					);
+			}
 		}
 
 		public void TurnOn()
@@ -62,28 +95,50 @@ namespace MagicHomeController
 				SendMessage(new byte[] {0x71, 0x24, 0x0F}, true, true);
 		}
 
-		public void SetColor(byte red, byte green, byte blue, byte? white1 = null, byte? white2 = null, bool waitForResponse = true)
+		public void SetColor(byte? red = null, byte? green = null, byte? blue = null, byte? white1 = null, byte? white2 = null, bool waitForResponse = true, bool persist = true)
 		{
 			byte[] message;
+
+			bool sendChecksum;
+
+			bool rgbSet = red.HasValue || green.HasValue || blue.HasValue;
+			bool white1Set = white1.HasValue;
+			bool white2Set = white2.HasValue;
+
+			if (rgbSet && (!red.HasValue || !green.HasValue || !blue.HasValue))
+				throw new InvalidOperationException("All color values (rgb) must be set");
+
+			if(_deviceType == DeviceType.Rgb && white1Set)
+				throw new InvalidOperationException("device type Rgb doesn't have white1");
+
+			if(_deviceType != DeviceType.RgbWarmwhiteColdwhite && white2Set)
+				throw new InvalidOperationException("only device type RgbWarmwhiteColdwhite has white2");
+
+			if((_deviceType == DeviceType.Bulb || _deviceType == DeviceType.LegacyBulb) && rgbSet && white1Set)
+				throw new InvalidOperationException("only rgb or white can be set at once if using bulbs");
 
 			switch (_deviceType)
 			{
 				case DeviceType.Rgb:
 				case DeviceType.RgbWarmwhite:
 				case DeviceType.Bulb:
-					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, 0x0f, 0x0f };
+					message = new byte[] {(byte) (persist ? 0x31 : 0x41), red ?? 0, green ?? 0, blue ?? 0, white1 ?? 0, 0x0f, 0x0f};
+					sendChecksum = true;
 					break;
-				case DeviceType.RgbWarmwhiteColdWhite:
-					message = new byte[] { 0x31, red, green, blue, white1 ?? 0, white2 ?? 0, 0x0f, 0x0f };
+				case DeviceType.RgbWarmwhiteColdwhite:
+					message = new byte[] {(byte) (persist ? 0x31 : 0x41), red ?? 0, green ?? 0, blue ?? 0, white1 ?? 0, white2 ?? 0, 0x0f, 0x0f};
+					sendChecksum = true;
 					break;
 				case DeviceType.LegacyBulb:
-					message = new byte[] {0x56, red, green, blue, white1 ?? 0, 0x0f, 0xaa };
+					sendChecksum = false;
+					message = new byte[] {(byte) (persist ? 0x56 : 0x77), red ?? 0, green ?? 0, blue ?? 0, white1 ?? 0, (byte) (rgbSet ? 0xf0 : 0x0f), 0xaa};
 					break;
 				default:
 					throw new ArgumentOutOfRangeException();
 			}
 
-			SendMessage(message, true, waitForResponse);
+			
+			SendMessage(message, sendChecksum, waitForResponse);
 		}
 
 		public void SetPreset(PresetMode presetMode, byte delay)

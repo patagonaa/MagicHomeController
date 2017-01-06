@@ -7,10 +7,11 @@ namespace MagicHomeController
 			Mode = PresetMode.NormalRgb;
 		}
 
-		internal DeviceStatus(bool on, PresetMode mode, byte presetDelay, byte red, byte green, byte blue, byte white1, byte? white2)
+		internal DeviceStatus(bool on, PresetMode mode, bool presetPaused, byte presetDelay, byte red, byte green, byte blue, byte white1, byte? white2)
 		{
 			On = on;
 			Mode = mode;
+			PresetPaused = presetPaused;
 			PresetDelay = presetDelay;
 			Red = red;
 			Green = green;
@@ -21,6 +22,7 @@ namespace MagicHomeController
 
 		public bool On { get; set; }
 		public PresetMode Mode { get; set; }
+		public bool PresetPaused { get; set; }
 		public byte PresetDelay { get; set; }
 		public byte Red { get; set; }
 		public byte Green { get; set; }

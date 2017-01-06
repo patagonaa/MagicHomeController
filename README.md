@@ -18,7 +18,7 @@ new Device(EndPoint endPoint, DeviceType type);
 Device Types as defined in the `DeviceType` enum:
 * DeviceType.Rgb
 * DeviceType.RgbWarmwhite
-* DeviceType.RgbWarmwhiteColdWhite
+* DeviceType.RgbWarmwhiteColdwhite
 * DeviceType.Bulb // V.4+
 * DeviceType.LegacyBulb // V.3-
 
