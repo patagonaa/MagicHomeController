@@ -159,7 +159,7 @@ namespace MagicHomeController
 		public static IEnumerable<DeviceFindResult> FindDevices(EndPoint endPoint = null, int timeout = 5000)
 		{
 			if (endPoint == null)
-				endPoint = new IPEndPoint(new IPAddress(new byte[] {255, 255, 255, 255}), BroadcastPort);
+				endPoint = new IPEndPoint(IPAddress.Broadcast, BroadcastPort);
 
 			return new DeviceFindEnumerable(endPoint, timeout);
 		}
