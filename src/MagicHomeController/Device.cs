@@ -122,8 +122,8 @@ namespace MagicHomeController
 			if(_deviceType != DeviceType.RgbWarmwhiteColdwhite && white2Set)
 				throw new InvalidOperationException("only device type RgbWarmwhiteColdwhite has white2");
 
-			if((_deviceType == DeviceType.Bulb || _deviceType == DeviceType.LegacyBulb) && rgbSet && white1Set)
-				throw new InvalidOperationException("only rgb or white can be set at once if using bulbs");
+			if((_deviceType == DeviceType.Bulb || _deviceType == DeviceType.LegacyBulb || _deviceType == DeviceType.RgbWarmwhiteColdwhite) && rgbSet && white1Set)
+				throw new InvalidOperationException("only rgb or white can be set at once if using bulbs or RGBWWCW");
 
 			switch (_deviceType)
 			{
@@ -134,7 +134,7 @@ namespace MagicHomeController
 					sendChecksum = true;
 					break;
 				case DeviceType.RgbWarmwhiteColdwhite:
-					message = new byte[] {(byte) (persist ? 0x31 : 0x41), red ?? 0, green ?? 0, blue ?? 0, white1 ?? 0, white2 ?? 0, 0x0f, 0x0f};
+					message = new byte[] {(byte) (persist ? 0x31 : 0x41), red ?? 0, green ?? 0, blue ?? 0, white1 ?? 0, white2 ?? 0, (byte) (rgbSet ? 0xf0 : 0x0f), 0x0f};
 					sendChecksum = true;
 					break;
 				case DeviceType.LegacyBulb:
@@ -145,7 +145,6 @@ namespace MagicHomeController
 					throw new ArgumentOutOfRangeException();
 			}
 
-			
 			SendMessage(message, sendChecksum, waitForResponse);
 		}
 
