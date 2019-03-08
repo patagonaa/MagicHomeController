@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace MagicHomeController
+namespace MagicHomeController.Timers
 {
 	[Flags]
 	public enum TimerDays
